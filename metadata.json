@@ -1,0 +1,5 @@
+{
+  "name": "Tempo - AI Hackathon Planner",
+  "description": "A smart countdown and project management tool for hackathons. Features AI-powered deadline search, intelligent task generation based on remaining time, and time distribution visualization.",
+  "requestFramePermissions": []
+}
