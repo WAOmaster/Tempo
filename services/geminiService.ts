@@ -11,6 +11,7 @@ const SEARCH_MODEL = 'gemini-3-flash-preview'; // Good for tool use
 const PLANNER_MODEL = 'gemini-3-flash-preview'; // Good for structured JSON
 const IMAGE_GEN_MODEL = 'gemini-3-pro-image-preview';
 const IMAGE_EDIT_MODEL = 'gemini-2.5-flash-image';
+const BACKGROUND_GEN_MODEL = 'gemini-2.5-flash-image'; // Nano banana for fast background generation
 
 /**
  * Searches for an event deadline using Google Search Tool.
@@ -329,6 +330,39 @@ export const editImage = async (base64Image: string, mimeType: string, prompt: s
     throw new Error("No image generated from edit");
   } catch (error) {
     console.error("Error editing image:", error);
+    throw error;
+  }
+};
+
+/**
+ * Generates a thematic background for a project using Nano Banana (Gemini 2.5 Flash Image).
+ */
+export const generateProjectBackground = async (name: string, description: string): Promise<string> => {
+  const aiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `Abstract, futuristic, dark-themed wallpaper.
+  Context: A hackathon project named "${name}".
+  Details: ${description}.
+  Style: Cybernetic, glowing neon elements, deep space or digital grid background, minimal, high contrast.
+  Aesthetics: Suitable for a UI background, not too busy, dark and sleek.`;
+
+  try {
+    const response = await aiClient.models.generateContent({
+      model: BACKGROUND_GEN_MODEL,
+      contents: {
+        parts: [{ text: prompt }]
+      },
+      // Nano banana generally implies gemini-2.5-flash-image which supports standard generateContent for images.
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No background image generated");
+  } catch (error) {
+    console.error("Error generating background:", error);
     throw error;
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, LayoutDashboard, ListTodo, History as HistoryIcon, Image as ImageIcon, Menu } from 'lucide-react';
+import { Sparkles, LayoutDashboard, ListTodo, History as HistoryIcon, Image as ImageIcon, Menu, Loader2 } from 'lucide-react';
 import CountdownTimer from './components/CountdownTimer';
 import EventSetup from './components/EventSetup';
 import TaskBoard from './components/TaskBoard';
@@ -7,25 +7,27 @@ import TimeDistribution from './components/TimeDistribution';
 import HistoryView from './components/HistoryView';
 import ImageStudio from './components/ImageStudio';
 import ProjectListSidebar from './components/ProjectListSidebar';
-import { generateProjectPlan } from './services/geminiService';
-import { GeneratedPlan, TaskStatus, Task, SavedProject } from './types';
+import UserMenu from './components/UserMenu';
+import { generateProjectPlan, generateProjectBackground } from './services/geminiService';
+import { storageService } from './services/storageService';
+import { authService } from './services/authService';
+import { cloudService } from './services/cloudService';
+import { GeneratedPlan, TaskStatus, Task, SavedProject, UserProfile } from './types';
 
 const App: React.FC = () => {
   // --- State Management ---
   
-  // All projects stored
-  const [projects, setProjects] = useState<SavedProject[]>(() => {
-    const saved = localStorage.getItem('tempo-projects');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [projects, setProjects] = useState<SavedProject[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Currently active project ID. If null, showing "Create New/EventSetup"
+  // User & Auth State
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+
+  // Currently active project ID.
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
-    const saved = localStorage.getItem('tempo-active-id');
-    // Default to the first project if exists and no active ID is saved
-    const allProjects = localStorage.getItem('tempo-projects') ? JSON.parse(localStorage.getItem('tempo-projects')!) : [];
-    if (!saved && allProjects.length > 0) return allProjects[0].id;
-    return saved || null;
+    return localStorage.getItem('tempo-active-id');
   });
 
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -37,11 +39,57 @@ const App: React.FC = () => {
   // Derived Active Project
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
 
-  // --- Persistence ---
+  // --- Persistence & Initialization ---
 
   useEffect(() => {
-    localStorage.setItem('tempo-projects', JSON.stringify(projects));
-  }, [projects]);
+    const initData = async () => {
+      try {
+        // 1. Check for legacy data in localStorage
+        const legacyData = localStorage.getItem('tempo-projects');
+        if (legacyData) {
+          try {
+            const parsed = JSON.parse(legacyData) as SavedProject[];
+            // Migrate to IndexedDB
+            for (const p of parsed) {
+              await storageService.saveProject(p);
+            }
+            // Clear legacy data
+            localStorage.removeItem('tempo-projects');
+          } catch (e) {
+            console.error("Migration failed", e);
+          }
+        }
+
+        // 2. Load from IndexedDB
+        const dbProjects = await storageService.getAllProjects();
+        setProjects(dbProjects);
+        
+        // 3. Validate active ID
+        if (activeProjectId && !dbProjects.find(p => p.id === activeProjectId)) {
+            setActiveProjectId(dbProjects.length > 0 ? dbProjects[0].id : null);
+        } else if (!activeProjectId && dbProjects.length > 0) {
+            setActiveProjectId(dbProjects[0].id);
+        }
+
+        // 4. Init Auth
+        const savedUser = authService.getUser();
+        if (savedUser) setUser(savedUser);
+        
+        // Init Google One Tap / Sign In
+        authService.init((loggedInUser) => {
+            setUser(loggedInUser);
+            // Optionally auto-sync on login
+        });
+
+      } catch (err) {
+        console.error("Initialization failed", err);
+      } finally {
+        setIsDataLoaded(true);
+      }
+    };
+
+    initData();
+  }, []);
 
   useEffect(() => {
     if (activeProjectId) {
@@ -50,6 +98,50 @@ const App: React.FC = () => {
       localStorage.removeItem('tempo-active-id');
     }
   }, [activeProjectId]);
+
+  // --- Cloud Sync ---
+
+  const handleSync = async () => {
+    if (!user) return;
+    setIsSyncing(true);
+    try {
+        // 1. Get latest local
+        const localProjects = await storageService.getAllProjects();
+        
+        // 2. Fetch cloud
+        const cloudProjects = await cloudService.fetchCloudProjects(user);
+
+        // 3. Merge
+        const mergedProjects = cloudService.mergeProjects(localProjects, cloudProjects);
+
+        // 4. Save back to both
+        await cloudService.saveCloudProjects(user, mergedProjects);
+        
+        for (const p of mergedProjects) {
+            await storageService.saveProject(p);
+        }
+
+        // 5. Update State
+        setProjects(mergedProjects);
+        setLastSyncTime(new Date());
+
+        // Re-validate active ID if it got lost (unlikely in merge but good practice)
+        if (activeProjectId && !mergedProjects.find(p => p.id === activeProjectId)) {
+             setActiveProjectId(mergedProjects.length > 0 ? mergedProjects[0].id : null);
+        }
+
+    } catch (error) {
+        console.error("Sync failed", error);
+        alert("Sync failed. Please check your connection.");
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
+  const handleLogout = () => {
+      authService.logout();
+      setUser(null);
+  };
 
   // --- Handlers ---
 
@@ -61,18 +153,57 @@ const App: React.FC = () => {
       description,
       plan: null,
       taskHistory: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
-    setProjects(prev => [...prev, newProject]);
+    // Update State
+    setProjects(prev => {
+        const updated = [...prev, newProject];
+        return updated;
+    });
     setActiveProjectId(newProject.id);
+
+    // Persist to DB
+    storageService.saveProject(newProject);
+
+    // Automatically generate thematic background
+    generateProjectBackground(name, description)
+      .then(bgImage => {
+        setProjects(currentProjects => {
+           const updated = currentProjects.map(p => 
+            p.id === newProject.id ? { ...p, backgroundImage: bgImage } : p
+          );
+          // Persist background update
+          const updatedProject = updated.find(p => p.id === newProject.id);
+          if (updatedProject) storageService.saveProject(updatedProject);
+          return updated;
+        });
+      })
+      .catch(err => {
+        console.error("Auto-background generation failed:", err);
+      });
   };
 
   const updateActiveProject = (updates: Partial<SavedProject>) => {
     if (!activeProjectId) return;
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { ...p, ...updates } : p
-    ));
+    
+    setProjects(prev => {
+        const updatedProjects = prev.map(p => {
+            if (p.id === activeProjectId) {
+                const updated = { 
+                    ...p, 
+                    ...updates,
+                    updatedAt: new Date().toISOString() 
+                };
+                // Fire and forget save to DB
+                storageService.saveProject(updated).catch(console.error);
+                return updated;
+            }
+            return p;
+        });
+        return updatedProjects;
+    });
   };
 
   const handleGeneratePlan = async () => {
@@ -171,7 +302,8 @@ const App: React.FC = () => {
     updateActiveProject({ backgroundImage: url });
   };
 
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = async (id: string) => {
+    await storageService.deleteProject(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     if (activeProjectId === id) {
       setActiveProjectId(null);
@@ -179,6 +311,15 @@ const App: React.FC = () => {
   };
 
   // --- Render ---
+
+  if (!isDataLoaded) {
+      return (
+          <div className="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center text-white space-y-4">
+              <Loader2 className="w-10 h-10 animate-spin text-accent-500" />
+              <p className="text-gray-400 font-mono text-sm">Loading Hackathon Data...</p>
+          </div>
+      );
+  }
 
   // Use background image from active project if available
   const currentBg = activeProject?.backgroundImage;
@@ -220,8 +361,18 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-4">
+                  {/* User Profile Menu */}
+                  <UserMenu 
+                    user={user} 
+                    onLogin={setUser} 
+                    onLogout={handleLogout}
+                    onSync={handleSync}
+                    isSyncing={isSyncing}
+                    lastSyncTime={lastSyncTime}
+                  />
+
                   {activeProject && activeProject.plan && (
-                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/10 backdrop-blur-sm">
+                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/10 backdrop-blur-sm hidden sm:flex">
                         <button
                           onClick={() => setActiveTab('board')}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
@@ -231,7 +382,7 @@ const App: React.FC = () => {
                           }`}
                         >
                           <LayoutDashboard className="w-3 h-3" />
-                          Board
+                          <span className="hidden lg:inline">Board</span>
                         </button>
                         <button
                           onClick={() => setActiveTab('history')}
@@ -242,7 +393,7 @@ const App: React.FC = () => {
                           }`}
                         >
                           <HistoryIcon className="w-3 h-3" />
-                          History
+                          <span className="hidden lg:inline">History</span>
                         </button>
                         <button
                           onClick={() => setActiveTab('studio')}
@@ -253,7 +404,7 @@ const App: React.FC = () => {
                           }`}
                         >
                           <ImageIcon className="w-3 h-3" />
-                          Studio
+                          <span className="hidden lg:inline">Studio</span>
                         </button>
                     </div>
                   )}

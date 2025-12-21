@@ -62,7 +62,14 @@ export interface SavedProject {
   plan: GeneratedPlan | null;
   taskHistory: Task[];
   createdAt: string;
+  updatedAt?: string; // ISO string for sync merging
   backgroundImage?: string;
 }
 
 export type ImageSize = '1K' | '2K' | '4K';
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  picture: string;
+}

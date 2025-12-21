@@ -16,6 +16,9 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate, onTick }) =
   });
 
   const onTickRef = useRef(onTick);
+  // We use timestamp to avoid useEffect re-running when a new Date object 
+  // with the same time is passed (common in parent re-renders)
+  const targetTime = targetDate.getTime();
 
   useEffect(() => {
     onTickRef.current = onTick;
@@ -23,9 +26,13 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate, onTick }) =
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const difference = targetDate.getTime() - new Date().getTime();
+      const now = new Date().getTime();
+      const difference = targetTime - now;
       
-      if (onTickRef.current) onTickRef.current(difference);
+      // Update parent only if callback exists
+      if (onTickRef.current) {
+         onTickRef.current(difference);
+      }
 
       if (difference > 0) {
         setTimeLeft({
@@ -40,11 +47,14 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate, onTick }) =
       }
     };
 
+    // Run immediately
     calculateTimeLeft();
+    
+    // Set interval
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [targetTime]); // Depend on primitive timestamp, not object reference
 
   const TimeBlock = ({ value, label }: { value: number; label: string }) => (
     <div className="flex flex-col items-center mx-2 md:mx-4">
