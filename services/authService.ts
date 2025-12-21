@@ -1,9 +1,7 @@
 import { UserProfile } from "../types";
 
-// NOTE: In a real production app, this should be in an environment variable.
-// Since this is a generated demo, the user must provide their own Client ID.
-// Create credentials at https://console.cloud.google.com/apis/credentials
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+// The Google Client ID. In a build environment, this should be accessed via process.env.GOOGLE_CLIENT_ID.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "1050025521391-rr5qghkvq6sm3do0hl3flcodi9jmd9a0.apps.googleusercontent.com";
 
 export const authService = {
   /**
@@ -14,11 +12,6 @@ export const authService = {
     if (!(window as any).google) {
       console.warn("Google Identity Services script not loaded.");
       return;
-    }
-
-    // Check if we have a mock/demo client ID
-    if (GOOGLE_CLIENT_ID.startsWith("YOUR_GOOGLE")) {
-        console.log("Google Login: No Client ID configured.");
     }
 
     (window as any).google.accounts.id.initialize({
