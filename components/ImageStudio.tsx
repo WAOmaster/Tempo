@@ -105,13 +105,13 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
 
   return (
     <div className="animate-in slide-in-from-bottom-8 fade-in duration-700 space-y-6">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold flex items-center gap-2 text-white">
             <Sparkles className="w-5 h-5 text-accent-400" />
             Creative Studio
           </h2>
-          <div className="flex bg-gray-950 p-1 rounded-lg border border-gray-800">
+          <div className="flex bg-black/40 p-1 rounded-lg border border-white/10 backdrop-blur-sm">
             <button
               onClick={() => setMode('generate')}
               className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
@@ -134,7 +134,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
         {mode === 'generate' ? (
           <div className="space-y-6">
              {apiKeyError && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-lg flex items-center justify-between">
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-lg flex items-center justify-between backdrop-blur-sm">
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-red-400" />
                   <span className="text-sm">Paid API Key required for Pro model.</span>
@@ -155,7 +155,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
                   value={genPrompt}
                   onChange={(e) => setGenPrompt(e.target.value)}
                   placeholder="A futuristic cyberpunk city with neon lights..."
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none h-24 resize-none"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500/50 outline-none h-24 resize-none placeholder:text-gray-600"
                 />
               </div>
               <div className="w-full md:w-48 space-y-4">
@@ -164,7 +164,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
                   <select 
                     value={genSize}
                     onChange={(e) => setGenSize(e.target.value as ImageSize)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none appearance-none"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500/50 outline-none appearance-none"
                   >
                     <option value="1K">1K (Square)</option>
                     <option value="2K">2K (High Res)</option>
@@ -183,9 +183,9 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
             </div>
 
             {genResult && (
-              <div className="border border-gray-800 rounded-xl overflow-hidden bg-black relative group shadow-2xl">
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-black/50 relative group shadow-2xl backdrop-blur-md">
                 <img src={genResult} alt="Generated" className="w-full h-auto object-contain max-h-[500px]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 justify-between">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 justify-between">
                   <button
                     onClick={() => downloadImage(genResult, `tempo-gen-${Date.now()}.png`)}
                     className="bg-white text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-gray-200 transition-colors"
@@ -211,14 +211,14 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Original Image</label>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed border-gray-800 rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-accent-500/50 hover:bg-gray-800/30 relative overflow-hidden ${!sourceImage ? 'bg-gray-950' : 'bg-black'}`}
+                  className={`border-2 border-dashed border-white/10 rounded-xl h-64 flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-accent-500/50 hover:bg-white/5 relative overflow-hidden ${!sourceImage ? 'bg-black/30' : 'bg-black'}`}
                 >
                   {sourceImage ? (
                     <img src={sourceImage} alt="Source" className="w-full h-full object-contain" />
                   ) : (
                     <div className="text-center p-4">
-                      <Upload className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Click to upload image</p>
+                      <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                      <p className="text-sm text-gray-400">Click to upload image</p>
                     </div>
                   )}
                   <input 
@@ -239,7 +239,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
                     placeholder="E.g., Add a retro filter, Remove the person in the background..."
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none h-32 resize-none"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500/50 outline-none h-32 resize-none placeholder:text-gray-600"
                   />
                 </div>
                 <button
@@ -255,11 +255,11 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
 
             {/* Result Area */}
             {editResult && (
-              <div className="space-y-2 pt-4 border-t border-gray-800">
+              <div className="space-y-2 pt-4 border-t border-white/10">
                 <label className="text-xs font-bold text-accent-400 uppercase tracking-wider">Result</label>
-                <div className="border border-gray-800 rounded-xl overflow-hidden bg-black relative group shadow-2xl">
+                <div className="border border-white/10 rounded-xl overflow-hidden bg-black/50 relative group shadow-2xl backdrop-blur-md">
                   <img src={editResult} alt="Edited" className="w-full h-auto object-contain max-h-[500px]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 justify-between">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 justify-between">
                     <button
                       onClick={() => downloadImage(editResult, `tempo-edit-${Date.now()}.png`)}
                       className="bg-white text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-gray-200 transition-colors"

@@ -1,51 +1,93 @@
-import React, { useState } from 'react';
-import { Sparkles, ArrowLeft, LayoutDashboard, ListTodo, History as HistoryIcon, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, LayoutDashboard, ListTodo, History as HistoryIcon, Image as ImageIcon, Menu } from 'lucide-react';
 import CountdownTimer from './components/CountdownTimer';
 import EventSetup from './components/EventSetup';
 import TaskBoard from './components/TaskBoard';
 import TimeDistribution from './components/TimeDistribution';
 import HistoryView from './components/HistoryView';
 import ImageStudio from './components/ImageStudio';
+import ProjectListSidebar from './components/ProjectListSidebar';
 import { generateProjectPlan } from './services/geminiService';
-import { GeneratedPlan, ProjectState, TaskStatus, Task } from './types';
+import { GeneratedPlan, TaskStatus, Task, SavedProject } from './types';
 
 const App: React.FC = () => {
-  const [project, setProject] = useState<ProjectState>({
-    name: '',
-    deadline: null,
-    description: ''
+  // --- State Management ---
+  
+  // All projects stored
+  const [projects, setProjects] = useState<SavedProject[]>(() => {
+    const saved = localStorage.getItem('tempo-projects');
+    return saved ? JSON.parse(saved) : [];
   });
 
-  const [plan, setPlan] = useState<GeneratedPlan | null>(null);
+  // Currently active project ID. If null, showing "Create New/EventSetup"
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('tempo-active-id');
+    // Default to the first project if exists and no active ID is saved
+    const allProjects = localStorage.getItem('tempo-projects') ? JSON.parse(localStorage.getItem('tempo-projects')!) : [];
+    if (!saved && allProjects.length > 0) return allProjects[0].id;
+    return saved || null;
+  });
+
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'board' | 'history' | 'studio'>('board');
-  const [taskHistory, setTaskHistory] = useState<Task[]>([]);
-  const [bgImage, setBgImage] = useState<string | null>(null);
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Derived Active Project
+  const activeProject = projects.find(p => p.id === activeProjectId) || null;
+
+  // --- Persistence ---
+
+  useEffect(() => {
+    localStorage.setItem('tempo-projects', JSON.stringify(projects));
+  }, [projects]);
+
+  useEffect(() => {
+    if (activeProjectId) {
+      localStorage.setItem('tempo-active-id', activeProjectId);
+    } else {
+      localStorage.removeItem('tempo-active-id');
+    }
+  }, [activeProjectId]);
+
+  // --- Handlers ---
 
   const handleSetupConfirm = (name: string, date: Date, description: string) => {
-    setProject({ name, deadline: date, description });
+    const newProject: SavedProject = {
+      id: crypto.randomUUID(),
+      name,
+      deadline: date.toISOString(),
+      description,
+      plan: null,
+      taskHistory: [],
+      createdAt: new Date().toISOString()
+    };
+    
+    setProjects(prev => [...prev, newProject]);
+    setActiveProjectId(newProject.id);
   };
 
-  const handleReset = () => {
-    setProject({ name: '', deadline: null, description: '' });
-    setPlan(null);
-    setTaskHistory([]);
+  const updateActiveProject = (updates: Partial<SavedProject>) => {
+    if (!activeProjectId) return;
+    setProjects(prev => prev.map(p => 
+      p.id === activeProjectId ? { ...p, ...updates } : p
+    ));
   };
 
   const handleGeneratePlan = async () => {
-    if (!project.deadline) return;
+    if (!activeProject) return;
     
     setLoadingPlan(true);
     const minutesRemaining = Math.max(0, Math.floor(remainingMs / 1000 / 60));
     
     try {
       const generatedPlan = await generateProjectPlan(
-        project.name, 
-        project.description || "Hackathon Project", 
+        activeProject.name, 
+        activeProject.description || "Hackathon Project", 
         minutesRemaining
       );
-      setPlan(generatedPlan);
+      updateActiveProject({ plan: generatedPlan });
     } catch (error) {
       console.error("Failed to generate plan");
       alert("Could not generate plan. Please try again.");
@@ -55,12 +97,12 @@ const App: React.FC = () => {
   };
 
   const handleTaskToggle = (taskId: string, currentStatus: TaskStatus) => {
-    if (!plan) return;
+    if (!activeProject || !activeProject.plan) return;
 
     const newStatus = currentStatus === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE;
     
-    // Update the Plan state
-    const updatedPhases = plan.phases.map(phase => ({
+    // Update the Plan phases
+    const updatedPhases = activeProject.plan.phases.map(phase => ({
       ...phase,
       tasks: phase.tasks.map(task => {
         if (task.id === taskId) {
@@ -74,11 +116,9 @@ const App: React.FC = () => {
       })
     }));
 
-    setPlan({ ...plan, phases: updatedPhases });
-
     // Handle History Logic
+    let updatedHistory = [...activeProject.taskHistory];
     if (newStatus === TaskStatus.DONE) {
-       // Find the task and add to history
        let taskToAdd: Task | undefined;
        for (const phase of updatedPhases) {
          const t = phase.tasks.find(t => t.id === taskId);
@@ -87,26 +127,30 @@ const App: React.FC = () => {
             break;
          }
        }
-       if (taskToAdd) {
-         setTaskHistory(prev => [taskToAdd!, ...prev]);
+       if (taskToAdd && !updatedHistory.find(h => h.id === taskId)) {
+         updatedHistory = [taskToAdd, ...updatedHistory];
        }
     } else {
-      // Remove from history if unchecked
-      setTaskHistory(prev => prev.filter(t => t.id !== taskId));
+      updatedHistory = updatedHistory.filter(t => t.id !== taskId);
     }
+
+    updateActiveProject({
+      plan: { ...activeProject.plan, phases: updatedPhases },
+      taskHistory: updatedHistory
+    });
   };
 
   const handleEditTask = (updatedTask: Task) => {
-    if (!plan) return;
+    if (!activeProject || !activeProject.plan) return;
 
-    const updatedPhases = plan.phases.map(phase => ({
+    const updatedPhases = activeProject.plan.phases.map(phase => ({
       ...phase,
       tasks: phase.tasks.map(task => 
         task.id === updatedTask.id ? updatedTask : task
       )
     }));
 
-    // Recalculate total estimated minutes for phases and total plan
+    // Recalculate total estimated minutes
     let newTotalMinutes = 0;
     const phasesWithRecalculatedDuration = updatedPhases.map(phase => {
         const phaseTotal = phase.tasks.reduce((acc, t) => acc + t.durationMinutes, 0);
@@ -114,53 +158,76 @@ const App: React.FC = () => {
         return { ...phase, totalDurationMinutes: phaseTotal };
     });
 
-    setPlan({ 
-      ...plan, 
-      phases: phasesWithRecalculatedDuration,
-      totalEstimatedMinutes: newTotalMinutes
+    updateActiveProject({
+      plan: { 
+        ...activeProject.plan, 
+        phases: phasesWithRecalculatedDuration,
+        totalEstimatedMinutes: newTotalMinutes
+      }
     });
   };
+
+  const handleSetBackground = (url: string) => {
+    updateActiveProject({ backgroundImage: url });
+  };
+
+  const handleDeleteProject = (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    if (activeProjectId === id) {
+      setActiveProjectId(null);
+    }
+  };
+
+  // --- Render ---
+
+  // Use background image from active project if available
+  const currentBg = activeProject?.backgroundImage;
 
   return (
     <div 
       className="fixed inset-0 bg-gray-950 flex items-center justify-center p-4 md:p-8 transition-all duration-1000 ease-in-out bg-cover bg-center font-sans selection:bg-accent-500/30"
-      style={{ backgroundImage: bgImage ? `url(${bgImage})` : undefined }}
+      style={{ backgroundImage: currentBg ? `url(${currentBg})` : undefined }}
     >
-      {/* Background Overlay if image is set, to maintain contrast */}
-      {bgImage && <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />}
+      {/* Background Overlay */}
+      {currentBg && <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />}
 
       {/* Floating Window Container */}
-      <div className="relative w-full max-w-7xl h-full max-h-[900px] bg-gray-950/80 backdrop-blur-xl border border-gray-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10 animate-in zoom-in-95 duration-500">
+      <div className="relative w-full max-w-7xl h-full max-h-[900px] bg-black/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/5 animate-in zoom-in-95 duration-500">
         
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
           
-          {/* Navigation Bar */}
-          {project.deadline && (
-            <nav className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50">
-              <div className="px-6 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={handleReset}
-                    className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
-                    title="Reset Project"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <h1 className="font-bold text-lg text-gray-200 tracking-tight truncate max-w-[200px] md:max-w-md">
-                    {project.name}
-                  </h1>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  {plan && (
-                    <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+          {/* Top Bar / Navigation */}
+          <nav className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-30 h-16 flex items-center justify-between px-6">
+              <div className="flex items-center gap-4">
+                 <button 
+                   onClick={() => setIsSidebarOpen(true)}
+                   className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                 >
+                   <Menu className="w-5 h-5" />
+                   <span className="text-xs font-bold uppercase tracking-wider hidden md:block">My Hackathons</span>
+                 </button>
+                 
+                 {activeProject && (
+                    <div className="h-6 w-px bg-white/10 mx-2" />
+                 )}
+
+                 {activeProject && (
+                    <h1 className="font-bold text-lg text-gray-100 tracking-tight truncate max-w-[200px] md:max-w-md drop-shadow-sm">
+                        {activeProject.name}
+                    </h1>
+                 )}
+              </div>
+              
+              <div className="flex items-center gap-4">
+                  {activeProject && activeProject.plan && (
+                    <div className="flex bg-black/40 rounded-lg p-1 border border-white/10 backdrop-blur-sm">
                         <button
                           onClick={() => setActiveTab('board')}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             activeTab === 'board' 
-                              ? 'bg-gray-800 text-white shadow-sm' 
-                              : 'text-gray-400 hover:text-gray-200'
+                              ? 'bg-white/10 text-white shadow-sm border border-white/5' 
+                              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                           }`}
                         >
                           <LayoutDashboard className="w-3 h-3" />
@@ -170,8 +237,8 @@ const App: React.FC = () => {
                           onClick={() => setActiveTab('history')}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             activeTab === 'history' 
-                              ? 'bg-gray-800 text-white shadow-sm' 
-                              : 'text-gray-400 hover:text-gray-200'
+                              ? 'bg-white/10 text-white shadow-sm border border-white/5' 
+                              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                           }`}
                         >
                           <HistoryIcon className="w-3 h-3" />
@@ -181,8 +248,8 @@ const App: React.FC = () => {
                           onClick={() => setActiveTab('studio')}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             activeTab === 'studio' 
-                              ? 'bg-gray-800 text-white shadow-sm' 
-                              : 'text-gray-400 hover:text-gray-200'
+                              ? 'bg-white/10 text-white shadow-sm border border-white/5' 
+                              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                           }`}
                         >
                           <ImageIcon className="w-3 h-3" />
@@ -190,39 +257,38 @@ const App: React.FC = () => {
                         </button>
                     </div>
                   )}
-                  {plan && (
-                      <div className="hidden md:flex items-center gap-2 text-xs text-accent-400 bg-accent-500/10 px-3 py-1.5 rounded-full border border-accent-500/20">
+                  {activeProject && activeProject.plan && (
+                      <div className="hidden md:flex items-center gap-2 text-xs text-accent-400 bg-accent-500/10 px-3 py-1.5 rounded-full border border-accent-500/20 backdrop-blur-sm">
                         <Sparkles className="w-3 h-3" />
-                        <span>AI Plan Active</span>
+                        <span>AI Active</span>
                       </div>
                   )}
-                </div>
               </div>
-            </nav>
-          )}
+          </nav>
 
+          {/* Main Content Area */}
           <main className="px-6 py-8 space-y-8">
-            {!project.deadline ? (
+            {!activeProject ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh]">
                 <EventSetup onConfirm={handleSetupConfirm} />
               </div>
             ) : (
               <>
-                {/* Top Section: Countdown */}
+                {/* Countdown */}
                 <section className="flex flex-col items-center">
                   <CountdownTimer 
-                    targetDate={project.deadline} 
+                    targetDate={new Date(activeProject.deadline)} 
                     onTick={(ms) => setRemainingMs(ms)} 
                   />
                 </section>
 
-                {/* Action Area */}
-                {!plan && (
+                {/* Plan Generation Call to Action */}
+                {!activeProject.plan && (
                   <section className="flex flex-col items-center justify-center animate-in slide-in-from-bottom-4 fade-in duration-500">
-                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl max-w-lg w-full text-center">
+                    <div className="bg-black/40 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full text-center">
                         <Sparkles className="w-12 h-12 text-accent-400 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold text-white mb-2">Need a Game Plan?</h2>
-                        <p className="text-gray-400 mb-6">
+                        <p className="text-gray-300 mb-6">
                           Gemini can analyze your remaining time and generate a phased schedule with actionable tasks.
                         </p>
                         <button
@@ -240,44 +306,44 @@ const App: React.FC = () => {
                   </section>
                 )}
 
-                {/* Dashboard Grid */}
-                {plan && (
+                {/* Dashboard */}
+                {activeProject.plan && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-8 fade-in duration-700 pb-10">
                     
-                    {/* Left Column: Stats & Advice */}
+                    {/* Sidebar Stats */}
                     <div className="space-y-6">
-                      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                      <div className="bg-black/20 backdrop-blur-sm border border-white/10 rounded-xl p-6">
                         <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">AI Advisor</h3>
-                        <p className="text-sm text-gray-300 italic leading-relaxed">
-                          "{plan.advice}"
+                        <p className="text-sm text-gray-200 italic leading-relaxed">
+                          "{activeProject.plan.advice}"
                         </p>
                       </div>
 
-                      <TimeDistribution phases={plan.phases} />
+                      <TimeDistribution phases={activeProject.plan.phases} />
                     </div>
 
-                    {/* Right Column: Tasks or History or Studio */}
+                    {/* Main Workspace */}
                     <div className="lg:col-span-2">
                       {activeTab === 'board' && (
                         <>
                           <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+                            <h3 className="text-xl font-bold flex items-center gap-2 text-white drop-shadow-md">
                               <ListTodo className="w-5 h-5 text-accent-400" />
                               Action Plan
                             </h3>
-                            <div className="text-sm text-gray-500">
-                              {plan.totalEstimatedMinutes} mins estimated work
+                            <div className="text-sm text-gray-400 font-medium bg-black/30 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                              {activeProject.plan.totalEstimatedMinutes} mins estimated work
                             </div>
                           </div>
                           <TaskBoard 
-                            phases={plan.phases} 
+                            phases={activeProject.plan.phases} 
                             onToggleTask={handleTaskToggle}
                             onEditTask={handleEditTask}
                           />
                         </>
                       )}
-                      {activeTab === 'history' && <HistoryView tasks={taskHistory} />}
-                      {activeTab === 'studio' && <ImageStudio onSetBackground={setBgImage} />}
+                      {activeTab === 'history' && <HistoryView tasks={activeProject.taskHistory} />}
+                      {activeTab === 'studio' && <ImageStudio onSetBackground={handleSetBackground} />}
                     </div>
                   </div>
                 )}
@@ -286,6 +352,16 @@ const App: React.FC = () => {
           </main>
         </div>
       </div>
+
+      <ProjectListSidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)}
+        projects={projects}
+        activeProjectId={activeProjectId}
+        onSelectProject={(id) => setActiveProjectId(id)}
+        onDeleteProject={handleDeleteProject}
+        onAddNew={() => setActiveProjectId(null)}
+      />
     </div>
   );
 };

@@ -9,7 +9,7 @@ interface HistoryViewProps {
 const HistoryView: React.FC<HistoryViewProps> = ({ tasks }) => {
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-gray-900/50 rounded-xl border border-gray-800 border-dashed">
+      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 border-dashed">
         <History className="w-10 h-10 text-gray-600 mb-4" />
         <h3 className="text-gray-300 font-medium">No Completed Tasks</h3>
         <p className="text-gray-500 text-sm mt-2">Finish tasks on the board to see them here.</p>
@@ -34,15 +34,15 @@ const HistoryView: React.FC<HistoryViewProps> = ({ tasks }) => {
   };
 
   return (
-    <div className="bg-gray-900/30 rounded-xl border border-gray-800 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-800 bg-gray-900/80 flex items-center gap-2">
+    <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden shadow-sm">
+      <div className="px-6 py-4 border-b border-white/10 bg-black/40 backdrop-blur-md flex items-center gap-2">
         <History className="w-4 h-4 text-accent-400" />
         <h3 className="text-gray-200 font-semibold">Activity Log</h3>
       </div>
       
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm text-gray-400">
-          <thead className="bg-gray-900/50 text-xs uppercase font-medium text-gray-500">
+          <thead className="bg-black/30 text-xs uppercase font-medium text-gray-500 backdrop-blur-sm">
             <tr>
               <th className="px-6 py-3">Task</th>
               <th className="px-6 py-3">Phase</th>
@@ -50,15 +50,15 @@ const HistoryView: React.FC<HistoryViewProps> = ({ tasks }) => {
               <th className="px-6 py-3 text-right">Completed</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
+          <tbody className="divide-y divide-white/5">
             {sortedTasks.map((task) => (
-              <tr key={task.id} className="hover:bg-gray-800/30 transition-colors">
+              <tr key={task.id} className="hover:bg-white/5 transition-colors">
                 <td className="px-6 py-4 font-medium text-gray-200 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-500/50" />
                   {task.title}
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 rounded-full bg-gray-800 text-xs border border-gray-700">
+                  <span className="px-2 py-1 rounded-full bg-white/5 text-xs border border-white/10">
                     {task.phase}
                   </span>
                 </td>

@@ -47,4 +47,22 @@ export interface SearchResult {
   sourceUrl?: string;
 }
 
+export interface HackathonInfo {
+  name: string;
+  dateISO: string;
+  description: string;
+  url?: string;
+}
+
+export interface SavedProject {
+  id: string;
+  name: string;
+  deadline: string; // Stored as ISO string
+  description: string;
+  plan: GeneratedPlan | null;
+  taskHistory: Task[];
+  createdAt: string;
+  backgroundImage?: string;
+}
+
 export type ImageSize = '1K' | '2K' | '4K';

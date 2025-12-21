@@ -22,7 +22,7 @@ const TimeDistribution: React.FC<TimeDistributionProps> = ({ phases }) => {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-900 border border-gray-700 p-2 rounded shadow-xl">
+        <div className="bg-gray-900/95 backdrop-blur-md border border-white/10 p-2 rounded shadow-xl">
           <p className="text-gray-200 font-medium text-sm">{`${payload[0].name}`}</p>
           <p className="text-accent-400 text-xs font-mono">
             {formatDuration(payload[0].value)}
@@ -35,14 +35,14 @@ const TimeDistribution: React.FC<TimeDistributionProps> = ({ phases }) => {
 
   if (phases.length === 0) {
     return (
-      <div className="h-64 flex items-center justify-center text-gray-500 border border-dashed border-gray-800 rounded-xl">
+      <div className="h-64 flex items-center justify-center text-gray-500 border border-dashed border-white/10 rounded-xl bg-black/20 backdrop-blur-sm">
         No plan generated yet
       </div>
     );
   }
 
   return (
-    <div className="w-full h-80 bg-gray-900/50 rounded-xl border border-gray-800 p-4">
+    <div className="w-full h-80 bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 p-4">
       <h3 className="text-gray-300 font-semibold mb-4 text-sm uppercase tracking-wider">Time Distribution</h3>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>

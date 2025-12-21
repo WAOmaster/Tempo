@@ -63,7 +63,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ phases, onToggleTask, onEditTask 
 
   if (!phases || phases.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-gray-900/50 rounded-xl border border-gray-800 border-dashed">
+      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 border-dashed">
         <AlertCircle className="w-10 h-10 text-gray-600 mb-4" />
         <h3 className="text-gray-300 font-medium">No Tasks Generated</h3>
         <p className="text-gray-500 text-sm mt-2">Use the generator above to create a plan.</p>
@@ -80,8 +80,8 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ phases, onToggleTask, onEditTask 
             onClick={() => setSortBy(prev => prev === 'default' ? 'priority' : 'default')}
             className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-200 active:scale-95 ${
               sortBy === 'priority' 
-                ? 'bg-accent-500/20 border-accent-500/50 text-accent-400' 
-                : 'bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200'
+                ? 'bg-accent-500/20 border-accent-500/50 text-accent-400 backdrop-blur-sm' 
+                : 'bg-black/20 border-white/10 text-gray-400 hover:text-gray-200 backdrop-blur-sm hover:bg-white/5'
             }`}
           >
             {sortBy === 'priority' ? <ArrowUpNarrowWide className="w-3 h-3" /> : <ListFilter className="w-3 h-3" />}
@@ -90,12 +90,12 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ phases, onToggleTask, onEditTask 
         </div>
 
         {phases.map((phase) => (
-          <div key={phase.name} className="bg-gray-900/30 rounded-xl border border-gray-800 overflow-hidden">
+          <div key={phase.name} className="bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden shadow-sm">
             {/* Phase Header */}
-            <div className="px-4 py-3 border-b border-gray-800 flex justify-between items-center bg-gray-900/80">
+            <div className="px-4 py-3 border-b border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md">
               <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: phase.color }} />
-                <h3 className="text-gray-200 font-semibold">{phase.name}</h3>
+                <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: phase.color }} />
+                <h3 className="text-gray-200 font-semibold text-shadow-sm">{phase.name}</h3>
               </div>
               <span className="text-xs text-gray-500 font-mono">
                 {Math.floor(phase.totalDurationMinutes / 60)}h {phase.totalDurationMinutes % 60}m
@@ -103,14 +103,14 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ phases, onToggleTask, onEditTask 
             </div>
 
             {/* Task List */}
-            <div className="divide-y divide-gray-800/50">
+            <div className="divide-y divide-white/5">
               {sortTasks(phase.tasks).map((task) => (
                 <div 
                   key={task.id} 
-                  className={`p-4 flex items-start gap-4 transition-all duration-300 ease-out hover:bg-gray-800/30 border-l-[3px] group ${
+                  className={`p-4 flex items-start gap-4 transition-all duration-300 ease-out hover:bg-white/5 border-l-[3px] group ${
                     task.status === TaskStatus.DONE 
-                      ? 'opacity-50 bg-gray-900/20 border-transparent grayscale-[0.5] scale-[0.995]' 
-                      : 'opacity-100 border-transparent hover:border-gray-700'
+                      ? 'opacity-50 bg-black/10 border-transparent grayscale-[0.5] scale-[0.995]' 
+                      : 'opacity-100 border-transparent hover:border-white/10'
                   }`}
                 >
                   <button 
@@ -133,13 +133,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ phases, onToggleTask, onEditTask 
                       </h4>
                       {getPriorityIcon(task.priority)}
                     </div>
-                    <p className="text-xs text-gray-500 line-clamp-2">
+                    <p className="text-xs text-gray-400 line-clamp-2">
                       {task.description}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 text-xs text-gray-600 font-mono flex items-center gap-1">
+                    <div className="flex-shrink-0 text-xs text-gray-500 font-mono flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {task.durationMinutes}m
                     </div>

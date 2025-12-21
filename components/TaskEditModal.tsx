@@ -35,7 +35,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, isOpen, onClose, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg shadow-2xl p-6 relative animate-in slide-in-from-bottom-4 zoom-in-95 duration-200">
+      <div className="bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl w-full max-w-lg shadow-2xl p-6 relative animate-in slide-in-from-bottom-4 zoom-in-95 duration-200">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -54,7 +54,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, isOpen, onClose, on
               type="text"
               value={formData.title || ''}
               onChange={e => setFormData({...formData, title: e.target.value})}
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none transition-all focus:border-accent-500/50"
+              className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none transition-all focus:border-accent-500/50"
               required
             />
           </div>
@@ -70,7 +70,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, isOpen, onClose, on
                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg border transition-all ${
                      formData.priority === p 
                        ? 'bg-accent-500/20 border-accent-500 text-accent-400 shadow-lg shadow-accent-500/10' 
-                       : 'bg-gray-950 border-gray-800 text-gray-500 hover:bg-gray-800 hover:border-gray-700'
+                       : 'bg-black/40 border-white/10 text-gray-500 hover:bg-white/5 hover:border-white/20'
                    }`}
                  >
                    {p}
@@ -87,7 +87,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, isOpen, onClose, on
                 min="1"
                 value={formData.durationMinutes || 0}
                 onChange={e => setFormData({...formData, durationMinutes: parseInt(e.target.value) || 0})}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none pl-10 transition-all focus:border-accent-500/50"
+                className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none pl-10 transition-all focus:border-accent-500/50"
                 required
               />
               <Clock className="w-4 h-4 text-gray-500 absolute left-3 top-3.5" />
@@ -99,11 +99,11 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, isOpen, onClose, on
             <textarea
               value={formData.description || ''}
               onChange={e => setFormData({...formData, description: e.target.value})}
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none h-28 resize-none transition-all focus:border-accent-500/50"
+              className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-gray-200 focus:ring-1 focus:ring-accent-500 outline-none h-28 resize-none transition-all focus:border-accent-500/50"
             />
           </div>
 
-          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-800">
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}

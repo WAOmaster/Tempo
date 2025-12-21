@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeneratedPlan, SearchResult, TaskStatus, Priority, ImageSize } from "../types";
+import { GeneratedPlan, SearchResult, TaskStatus, Priority, ImageSize, HackathonInfo, SavedProject } from "../types";
 
 const API_KEY = process.env.API_KEY || '';
 
@@ -72,6 +72,101 @@ export const findEventDeadline = async (query: string): Promise<SearchResult> =>
 
   } catch (error) {
     console.error("Error finding event:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches a list of upcoming hackathons.
+ */
+export const getUpcomingHackathons = async (): Promise<HackathonInfo[]> => {
+  if (!API_KEY) throw new Error("API Key not found");
+
+  const prompt = `Find 5 popular upcoming hackathons or developer competitions happening in the next 6 months globally. 
+  Return their names, submission deadlines (or end dates) in ISO format, and brief descriptions.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: SEARCH_MODEL,
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              dateISO: { type: Type.STRING },
+              description: { type: Type.STRING },
+              url: { type: Type.STRING }
+            },
+            required: ["name", "dateISO", "description"]
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error fetching hackathons:", error);
+    return [];
+  }
+};
+
+/**
+ * Generates a master strategy for managing multiple projects.
+ */
+export const generateMasterStrategy = async (projects: SavedProject[]): Promise<string> => {
+  if (!API_KEY) throw new Error("API Key not found");
+  
+  const projectSummaries = projects.map(p => {
+    const totalTasks = p.plan?.phases.reduce((acc, phase) => acc + phase.tasks.length, 0) || 0;
+    const completedTasks = p.taskHistory.length;
+    return `
+      - Project: ${p.name}
+      - Deadline: ${p.deadline}
+      - Description: ${p.description}
+      - Progress: ${completedTasks}/${totalTasks} tasks completed.
+      - Estimated Remaining Work: ${p.plan?.totalEstimatedMinutes || 'Unknown'} minutes.
+    `;
+  }).join('\n');
+
+  const prompt = `
+    I am participating in the following hackathons/projects:
+    ${projectSummaries}
+
+    Current Date: ${new Date().toISOString()}
+
+    Please act as a Strategic Project Manager. 
+    Analyze the deadlines and workloads.
+    Provide a "Master Strategy" on how to manage these concurrent projects.
+    
+    Include:
+    1. A high-level schedule or timeline of focus.
+    2. Identification of critical bottlenecks or conflicting deadlines.
+    3. Opportunities for "Inter-Hackathon Tasks" (e.g., reusing code, combining research, prioritizing learning that applies to both).
+    4. Specific advice on what to prioritize this week.
+
+    Format the response in clean Markdown.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: PLANNER_MODEL,
+      contents: prompt,
+      config: {
+        systemInstruction: "You are an expert technical project manager and productivity coach.",
+      }
+    });
+
+    return response.text || "Could not generate strategy.";
+  } catch (error) {
+    console.error("Error generating master strategy:", error);
     throw error;
   }
 };
