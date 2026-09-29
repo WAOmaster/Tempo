@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Sparkles, Wand2, Image as ImageIcon, Upload, Download, Loader2, AlertCircle, Monitor } from 'lucide-react';
+import { Sparkles, Wand2, Image as ImageIcon, Upload, Download, Loader2, Monitor } from 'lucide-react';
 import { generateImage, editImage } from '../services/geminiService';
 import { ImageSize } from '../types';
 
@@ -15,7 +15,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
   const [genSize, setGenSize] = useState<ImageSize>('1K');
   const [genResult, setGenResult] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState(false);
+
 
   // Edit State
   const [editPrompt, setEditPrompt] = useState('');
@@ -25,30 +25,11 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const checkApiKey = async () => {
-    if ((window as any).aistudio) {
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      return hasKey;
-    }
-    return true; // Fallback for environments without the wrapper
-  };
 
-  const openKeySelection = async () => {
-    if ((window as any).aistudio) {
-      await (window as any).aistudio.openSelectKey();
-      setApiKeyError(false);
-    }
-  };
+
 
   const handleGenerate = async () => {
     if (!genPrompt.trim()) return;
-    
-    setApiKeyError(false);
-    const hasKey = await checkApiKey();
-    if (!hasKey) {
-      setApiKeyError(true);
-      return;
-    }
 
     setIsGenerating(true);
     setGenResult(null);
@@ -56,11 +37,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
       const result = await generateImage(genPrompt, genSize);
       setGenResult(result);
     } catch (error: any) {
-      if (error.message?.includes("Requested entity was not found")) {
-         setApiKeyError(true);
-      } else {
-         alert("Failed to generate image. Please try again.");
-      }
+      alert("Failed to generate image. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -133,20 +110,7 @@ const ImageStudio: React.FC<ImageStudioProps> = ({ onSetBackground }) => {
 
         {mode === 'generate' ? (
           <div className="space-y-6">
-             {apiKeyError && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-lg flex items-center justify-between backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <span className="text-sm">Paid API Key required for Pro model.</span>
-                </div>
-                <button 
-                  onClick={openKeySelection}
-                  className="bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs px-3 py-1.5 rounded-md transition-colors border border-red-500/30"
-                >
-                  Select API Key
-                </button>
-              </div>
-            )}
+
 
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 space-y-2">
